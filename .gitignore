@@ -1,38 +1,118 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
+# --------------------------------------------------
 # Dependencies
-node_modules
+# --------------------------------------------------
+node_modules/
 .pnp
+.pnp.*
 .pnp.js
+jspm_packages/
+bower_components/
+web_modules/
 
-# Local env files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Yarn (v2+)
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.yarn-integrity
 
-# Testing
-coverage
+# --------------------------------------------------
+# Environment files
+# --------------------------------------------------
+.env*
+!.env.example
+.dev.vars*
+!.dev.vars.example
 
-# Turbo
-.turbo
-
-# Vercel
-.vercel
-
-# Build Outputs
+# --------------------------------------------------
+# Build outputs
+# --------------------------------------------------
 .next/
 out/
-build
-dist
+build/
+dist/
+.nuxt/
+.vuepress/dist
+.docusaurus
+.serverless/
+.fusebox/
+build/Release
 
+# --------------------------------------------------
+# Turbo / Vercel
+# --------------------------------------------------
+.turbo
+.vercel
 
-# Debug
+# --------------------------------------------------
+# Coverage / Testing
+# --------------------------------------------------
+coverage/
+.nyc_output
+*.lcov
+
+# --------------------------------------------------
+# Logs
+# --------------------------------------------------
+logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 
+# --------------------------------------------------
+# Debug / Runtime
+# --------------------------------------------------
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+pids
+*.pid
+*.pid.lock
+*.seed
+
+# --------------------------------------------------
+# Caches
+# --------------------------------------------------
+.cache
+.parcel-cache
+.eslintcache
+.stylelintcache
+.npm
+.grunt
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.node_repl_history
+.lock-wscript
+
+# --------------------------------------------------
+# TypeScript
+# --------------------------------------------------
+*.tsbuildinfo
+next-env.d.ts
+
+# --------------------------------------------------
 # Misc
+# --------------------------------------------------
 .DS_Store
 *.pem
+*.tgz
+.tern-port
+.dynamodb/
+
+# --------------------------------------------------
+# VS Code
+# --------------------------------------------------
+.vscode/
+.vscode-test
+
+# --------------------------------------------------
+# Wrangler / Cloudflare
+# --------------------------------------------------
+.wrangler/
