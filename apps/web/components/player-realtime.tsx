@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getRoomWsUrl } from "@/lib/realtime";
-import { Joystick } from "@/components/player/joystick";
+import { Joystick } from "@/components/player-joystick";
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));

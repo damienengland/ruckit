@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getRoomWsUrl } from "@/lib/realtime";
-import { PlayerAvatar } from "@/components/player/player-avatar";
+import { PlayerAvatar } from "@/components/player-avatar";
 
 type Player = {
   id: string;

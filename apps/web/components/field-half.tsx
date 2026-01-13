@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { FieldPost } from "@/components/field/field-post";
+import { FieldPost } from "@/components/field-post";
 
-export function HalfField({ children }: { children: ReactNode }) {
+export function FieldHalf({ children }: { children: ReactNode }) {
   return (
     <div className="relative h-full w-full bg-green-800 overflow-hidden">
       {/* Padding wrapper – DOES NOT increase screen height */}

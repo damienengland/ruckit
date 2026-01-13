@@ -1,4 +1,4 @@
-import { CreateSessionBtn } from "@/components/home/create-session-btn";
+import { CreateSessionBtn } from "@/components/home-create-session-btn";
 
 export default function Home() {
 

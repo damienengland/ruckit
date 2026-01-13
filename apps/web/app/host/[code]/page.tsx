@@ -1,4 +1,4 @@
-import { HostScreen } from "@/components/host/host-screen";
+import { HostScreen } from "@/components/host-screen";
 
 type Props = {
   params: Promise<{ code: string }>;
