@@ -72,26 +72,6 @@ export function PlayerRealtime({ code }: { code: string }) {
     return () => clearInterval(interval);
   }, [playerId]);
 
-  // Arrow keys for testing
-  // useEffect(() => {
-  //   const down = (e: KeyboardEvent) => {
-  //     if (e.key === "ArrowLeft") vxRef.current = -1;
-  //     if (e.key === "ArrowRight") vxRef.current = 1;
-  //     if (e.key === "ArrowUp") vyRef.current = -1;
-  //     if (e.key === "ArrowDown") vyRef.current = 1;
-  //   };
-  //   const up = (e: KeyboardEvent) => {
-  //     if (e.key === "ArrowLeft" || e.key === "ArrowRight") vxRef.current = 0;
-  //     if (e.key === "ArrowUp" || e.key === "ArrowDown") vyRef.current = 0;
-  //   };
-  //   window.addEventListener("keydown", down);
-  //   window.addEventListener("keyup", up);
-  //   return () => {
-  //     window.removeEventListener("keydown", down);
-  //     window.removeEventListener("keyup", up);
-  //   };
-  // }, []);
-  // Joystick updates (normalized -1..1)
   const handleJoystick = (v: { x: number; y: number }) => {
     vxRef.current = v.x;
     vyRef.current = v.y;
