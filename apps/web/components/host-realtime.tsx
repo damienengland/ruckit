@@ -6,6 +6,8 @@ import { PlayerAvatar } from "@/components/player-avatar";
 
 type Player = {
   id: string;
+  name: string;
+  number: number;
   x: number; // 0..1
   y: number; // 0..1
   vx: number; // -1..1
@@ -13,9 +15,10 @@ type Player = {
   lastInputT: number;
 };
 
+// ✅ Backward compatible Msg type
 type Msg =
   | { type: "ready" }
-  | { type: "player_joined"; playerId: string }
+  | { type: "player_joined"; playerId: string; name?: string; number?: number }
   | { type: "player_left"; playerId: string }
   | { type: "input"; playerId: string; vx: number; vy: number; t: number }
   | { type: "error"; error: string };
@@ -42,11 +45,17 @@ export function HostRealtime({
 
   const [renderPlayers, setRenderPlayers] = useState<Player[]>([]);
 
-  // helper to update count from one place
   const syncPlayerCount = () => onPlayerCountChange?.(playersRef.current.size);
 
   useEffect(() => {
-    const ws = new WebSocket(getRoomWsUrl(code));
+    // ✅ if code is ever undefined in your “new” version, this prevents silent failure
+    const safeCode = (code ?? "").trim().toUpperCase();
+    if (!safeCode) return;
+
+    const url = getRoomWsUrl(safeCode);
+    console.log("[host ws url]", url, "code:", safeCode);
+
+    const ws = new WebSocket(url);
     wsRef.current = ws;
 
     onStatusChange?.("connecting");
@@ -67,44 +76,37 @@ export function HostRealtime({
       if (msg.type === "ready") return;
 
       if (msg.type === "player_joined") {
-        if (!playersRef.current.has(msg.playerId)) {
-          playersRef.current.set(msg.playerId, {
-            id: msg.playerId,
-            x: 0.5,
-            y: 0.75,
-            vx: 0,
-            vy: 0,
-            lastInputT: Date.now(),
-          });
-          syncPlayerCount();
-        }
+        const existing = playersRef.current.get(msg.playerId);
+
+        playersRef.current.set(msg.playerId, {
+          id: msg.playerId,
+          // ✅ prefer server-provided name/number; fallback to sensible defaults
+          name: msg.name ?? existing?.name ?? msg.playerId,
+          number: msg.number ?? existing?.number ?? 4,
+          x: existing?.x ?? 0.5,
+          y: existing?.y ?? 0.75,
+          vx: existing?.vx ?? 0,
+          vy: existing?.vy ?? 0,
+          lastInputT: Date.now(),
+        });
+
+        syncPlayerCount();
         return;
       }
 
       if (msg.type === "player_left") {
-        if (playersRef.current.delete(msg.playerId)) {
-          syncPlayerCount();
-        }
+        if (playersRef.current.delete(msg.playerId)) syncPlayerCount();
         return;
       }
 
       if (msg.type === "input") {
-        const existing =
-          playersRef.current.get(msg.playerId) ??
-          ({
-            id: msg.playerId,
-            x: 0.5,
-            y: 0.75,
-            vx: 0,
-            vy: 0,
-            lastInputT: Date.now(),
-          } satisfies Player);
+        const existing = playersRef.current.get(msg.playerId);
+        if (!existing) return;
 
         existing.vx = clamp(msg.vx, -1, 1);
         existing.vy = clamp(msg.vy, -1, 1);
         existing.lastInputT = msg.t;
-
-        playersRef.current.set(msg.playerId, existing);
+        return;
       }
     };
 
@@ -112,15 +114,14 @@ export function HostRealtime({
     ws.onerror = () => onStatusChange?.("error");
 
     return () => ws.close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code]);
+  }, [code, onPlayerCountChange, onStatusChange]);
 
   // 60fps sim loop
   useEffect(() => {
     let raf = 0;
     let last = performance.now();
 
-    const speed = 0.10; // <-- control speed here
+    const speed = 0.10; // control speed here
 
     const tick = (now: number) => {
       const dt = (now - last) / 1000;
@@ -148,7 +149,7 @@ export function HostRealtime({
           style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
           title={p.id}
         >
-          <PlayerAvatar playerId={p.id} number={4} />
+          <PlayerAvatar name={p.name} number={p.number} />
         </div>
       ))}
     </>

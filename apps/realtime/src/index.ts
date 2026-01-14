@@ -2,19 +2,57 @@ export interface Env {
   ROOMS: DurableObjectNamespace;
 }
 
-type JoinMsg =
-  | { type: "join"; role: "host" }
-  | { type: "join"; role: "player"; playerId: string };
+/**
+ * Messages from clients → server
+ */
+type HostJoinMsg = { type: "join"; role: "host" };
+
+type PlayerJoinRequestMsg = {
+  type: "join_request";
+  role: "player";
+  playerId: string;
+  name: string;
+  number: number; // 1..15
+};
 
 type InputMsg = {
   type: "input";
-  playerId: string;
+  playerId: string; // client-sent (ignored; server uses attachment)
   vx: number; // -1..1
   vy: number; // -1..1
-  t: number;  // timestamp (ms)
+  t: number; // timestamp (ms)
 };
 
-type Msg = JoinMsg | InputMsg;
+type Msg = HostJoinMsg | PlayerJoinRequestMsg | InputMsg;
+
+/**
+ * Messages from server → player
+ */
+type JoinAccepted = {
+  type: "join_accepted";
+  playerId: string;
+  name: string;
+  number: number;
+};
+
+type JoinRejected = {
+  type: "join_rejected";
+  reason: "invalid_number" | "number_taken";
+};
+
+/**
+ * Attachment metadata we store on each WebSocket
+ */
+type SockMeta =
+  | { role: "host" }
+  | { role: "player"; playerId: string }
+  | null;
+
+type PlayerRecord = {
+  playerId: string;
+  name: string;
+  number: number;
+};
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -32,6 +70,10 @@ export default {
 };
 
 export class Room implements DurableObject {
+  // in-memory state for this room
+  private players = new Map<string, PlayerRecord>(); // playerId -> record
+  private numberToPlayerId = new Map<number, string>(); // number -> playerId
+
   constructor(private state: DurableObjectState) {}
 
   async fetch(request: Request): Promise<Response> {
@@ -58,43 +100,93 @@ export class Room implements DurableObject {
       ws.send(JSON.stringify({ type: "error", error: "invalid_json" }));
       return;
     }
+    console.log("[room] incoming", data);
 
-    // 1) JOIN
-    if (data.type === "join") {
-      if (data.role === "host") {
-        ws.serializeAttachment({ role: "host" });
-        ws.send(JSON.stringify({ type: "ready" }));
-        return;
-      }
-
-      // player join
-      if (!data.playerId) {
-        ws.send(JSON.stringify({ type: "error", error: "missing_playerId" }));
-        return;
-      }
-
-      ws.serializeAttachment({ role: "player", playerId: data.playerId });
-
-      // Notify host only
-      this.sendToHost({ type: "player_joined", playerId: data.playerId });
+    // 1) HOST JOIN (unchanged)
+    if (data.type === "join" && data.role === "host") {
+      ws.serializeAttachment({ role: "host" } satisfies SockMeta);
+      ws.send(JSON.stringify({ type: "ready" }));
       return;
     }
 
-    // 2) INPUT (only accept from players)
+    // 2) PLAYER JOIN REQUEST (NEW)
+    if (data.type === "join_request" && data.role === "player") {
+      const playerId = (data.playerId || "").trim();
+      const name = (data.name || "").trim();
+      const number = data.number;
+
+      // basic validation
+      if (!playerId || !name || typeof number !== "number") {
+        ws.send(JSON.stringify({ type: "join_rejected", reason: "invalid_number" } satisfies JoinRejected));
+        return;
+      }
+
+      if (!Number.isInteger(number) || number < 1 || number > 15) {
+        ws.send(JSON.stringify({ type: "join_rejected", reason: "invalid_number" } satisfies JoinRejected));
+        return;
+      }
+
+      // If this playerId already exists (reconnect), free their old number first
+      const existing = this.players.get(playerId);
+      if (existing) {
+        this.numberToPlayerId.delete(existing.number);
+      }
+
+      // enforce unique jersey number
+      const takenBy = this.numberToPlayerId.get(number);
+      if (takenBy && takenBy !== playerId) {
+        ws.send(JSON.stringify({ type: "join_rejected", reason: "number_taken" } satisfies JoinRejected));
+        return;
+      }
+
+      // accept: store state
+      this.players.set(playerId, { playerId, name, number });
+      this.numberToPlayerId.set(number, playerId);
+
+      // attach to socket (authoritative identity)
+      ws.serializeAttachment({ role: "player", playerId } satisfies SockMeta);
+
+      // reply to player
+      ws.send(
+        JSON.stringify({
+          type: "join_accepted",
+          playerId,
+          name,
+          number,
+        } satisfies JoinAccepted)
+      );
+
+      // notify host with full metadata
+      this.sendToHost({
+        type: "player_joined",
+        playerId,
+        name,
+        number,
+      });
+
+      return;
+    }
+
+    // 3) INPUT (only accept from joined players)
     if (data.type === "input") {
-      const meta = ws.deserializeAttachment() as
-        | { role?: "host" | "player"; playerId?: string }
-        | null;
+      const meta = ws.deserializeAttachment() as SockMeta;
 
       if (!meta || meta.role !== "player") {
         ws.send(JSON.stringify({ type: "error", error: "not_a_player" }));
         return;
       }
 
-      // Forward to host only
+      const player = this.players.get(meta.playerId);
+      if (!player) {
+        // player hasn't been accepted (or was cleared)
+        ws.send(JSON.stringify({ type: "error", error: "not_joined" }));
+        return;
+      }
+
+      // Forward to host only (host does the simulation)
       this.sendToHost({
         type: "input",
-        playerId: meta.playerId!,
+        playerId: meta.playerId,
         vx: data.vx,
         vy: data.vy,
         t: data.t,
@@ -102,22 +194,34 @@ export class Room implements DurableObject {
 
       return;
     }
+
+    // If message type didn't match any handler:
+    ws.send(JSON.stringify({ type: "error", error: "unknown_message_type" }));
   }
 
   async webSocketClose(ws: WebSocket) {
-    const meta = ws.deserializeAttachment() as
-      | { role?: "host" | "player"; playerId?: string | null }
-      | null;
+    const meta = ws.deserializeAttachment() as SockMeta;
 
-    if (meta?.role === "player" && meta.playerId) {
-      this.sendToHost({ type: "player_left", playerId: meta.playerId });
+    if (meta?.role === "player") {
+      const playerId = meta.playerId;
+      const existing = this.players.get(playerId);
+
+      if (existing) {
+        this.players.delete(playerId);
+        this.numberToPlayerId.delete(existing.number);
+
+        this.sendToHost({ type: "player_left", playerId });
+      }
     }
+
+    // if host disconnects, we just let it go; next host can join again
   }
 
   private sendToHost(payload: unknown) {
     const msg = JSON.stringify(payload);
+
     for (const sock of this.state.getWebSockets()) {
-      const meta = sock.deserializeAttachment() as { role?: "host" | "player" } | null;
+      const meta = sock.deserializeAttachment() as SockMeta;
       if (meta?.role === "host") {
         try {
           sock.send(msg);

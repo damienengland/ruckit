@@ -1,6 +1,14 @@
-import { PlayerRealtime } from "@/components/player-realtime";
+// app/join/[code]/page.tsx
+import { JoinClient } from "@/components/join-client";
+import { getRoomWsUrl } from "@/lib/realtime";
 
-export default async function Join({ params }: { params: Promise<{ code: string }> }) {
+type Props = {
+  params: Promise<{ code: string }>;
+};
+
+export default async function JoinPage({ params }: Props) {
+  
   const { code } = await params;
-  return <PlayerRealtime code={code} />;
+  console.log("[player] connecting to", getRoomWsUrl(code));
+  return <JoinClient code={code} />;
 }
