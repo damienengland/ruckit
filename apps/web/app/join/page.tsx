@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { JoinEntry } from "@/components/join-entry";
 import SigninButton from "@/components/sign-in-btn";
+import { ExpandingButtonGroup } from "@/components/expanding-button-group";
 
 export default function Join() {
     return (
@@ -12,9 +13,10 @@ export default function Join() {
           priority
           className="object-cover"
         />
-        <section className="flex z-10">
+        <section className="flex flex-col gap-4 z-10">
           <JoinEntry />
           <SigninButton />
+          <ExpandingButtonGroup />
         </section>
       </div>
     );
