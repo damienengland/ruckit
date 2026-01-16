@@ -1,11 +1,20 @@
-import { CreateSessionBtn } from "@/components/home-create-session-btn";
+
+import Image from "next/image";
+
 
 export default function Home() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <section className="flex">
-        <CreateSessionBtn />
+      <Image
+        src="/home-bg.png"
+        alt="Background Image"
+        fill
+        priority
+        className="object-cover"
+      />
+      <section className="flex z-10">
+        
       </section>
     </div>
   );
