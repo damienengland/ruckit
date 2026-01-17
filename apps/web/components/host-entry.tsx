@@ -4,13 +4,17 @@ import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { generateSessionCode } from "@/lib/session-code";
 
 
 export function HostEntry() {
 
-  const gamePin = generateSessionCode();
+  const [gamePin, setGamePin] = useState<string>("");
+
+  useEffect(() => {
+    setGamePin(generateSessionCode());
+  }, []);
 
   return (
     <div className="flex w-full min-w-lg flex-col items-center">
@@ -19,9 +23,13 @@ export function HostEntry() {
           <CardTitle className="text-white font-bold text-2xl"><Logo /></CardTitle>
         </CardHeader>
         <CardContent>
-          <Link href={`/host/${gamePin}`} className="w-full">
-            <Button className="w-full bg-black/50 text-white font-semibold text-base h-12 hover:bg-black/70">Create Session</Button>
-          </Link>
+          {gamePin ? (
+            <Link href={`/host/${gamePin}`} className="w-full">
+              <Button className="w-full bg-black/50 text-white font-semibold text-base h-12 hover:bg-black/70">Create Session</Button>
+            </Link>
+          ) : (
+            <Button disabled className="w-full bg-black/50 text-white font-semibold text-base h-12 hover:bg-black/70">Loading...</Button>
+          )}
         </CardContent>
 
       </Card>
