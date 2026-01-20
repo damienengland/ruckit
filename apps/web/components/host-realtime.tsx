@@ -34,6 +34,7 @@ type HostRealtimeProps = {
   onStatusChange?: (status: ConnectionStatus) => void;
   onPlayerCountChange?: (count: number) => void;
   movementLocked?: boolean;
+  jerseyVisibility?: Record<number, boolean>;
 };
 
 export function HostRealtime({
@@ -41,12 +42,33 @@ export function HostRealtime({
   onStatusChange,
   onPlayerCountChange,
   movementLocked = false,
+  jerseyVisibility,
 }: HostRealtimeProps) {
   const wsRef = useRef<WebSocket | null>(null);
   const playersRef = useRef<Map<string, Player>>(new Map());
   const movementLockedRef = useRef(movementLocked);
 
   const [renderPlayers, setRenderPlayers] = useState<Player[]>([]);
+
+  const lineupPositions: Record<number, { x: number; y: number }> = {
+    1: { x: 0.35, y: 0.85 },
+    2: { x: 0.5, y: 0.85 },
+    3: { x: 0.65, y: 0.85 },
+    4: { x: 0.42, y: 0.7 },
+    5: { x: 0.58, y: 0.7 },
+    6: { x: 0.3, y: 0.58 },
+    7: { x: 0.7, y: 0.58 },
+    8: { x: 0.5, y: 0.58 },
+    9: { x: 0.46, y: 0.45 },
+    10: { x: 0.54, y: 0.45 },
+    11: { x: 0.2, y: 0.25 },
+    12: { x: 0.4, y: 0.35 },
+    13: { x: 0.6, y: 0.35 },
+    14: { x: 0.8, y: 0.25 },
+    15: { x: 0.5, y: 0.15 },
+  };
+
+  const jerseyNumbers = Array.from({ length: 15 }, (_, index) => index + 1);
 
   const syncPlayerCount = () => onPlayerCountChange?.(playersRef.current.size);
 
@@ -166,16 +188,38 @@ export function HostRealtime({
 
   return (
     <>
-      {renderPlayers.map((p) => (
-        <div
-          key={p.id}
-          className="absolute z-40 -translate-x-1/2 -translate-y-1/2"
-          style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
-          title={p.id}
-        >
-          <PlayerAvatar name={p.name} number={p.number} />
-        </div>
-      ))}
+      {renderPlayers.map((p) => {
+        const isVisible = jerseyVisibility?.[p.number] ?? true;
+        if (!isVisible) return null;
+
+        return (
+          <div
+            key={p.id}
+            className="absolute z-40 -translate-x-1/2 -translate-y-1/2"
+            style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
+            title={p.id}
+          >
+            <PlayerAvatar name={p.name} number={p.number} />
+          </div>
+        );
+      })}
+      {jerseyNumbers.map((number) => {
+        const isVisible = jerseyVisibility?.[number] ?? true;
+        const hasPlayer = renderPlayers.some((player) => player.number === number);
+        const position = lineupPositions[number];
+
+        if (!isVisible || hasPlayer || !position) return null;
+
+        return (
+          <div
+            key={`placeholder-${number}`}
+            className="absolute z-30 -translate-x-1/2 -translate-y-1/2 opacity-70"
+            style={{ left: `${position.x * 100}%`, top: `${position.y * 100}%` }}
+          >
+            <PlayerAvatar name="Open" number={number} />
+          </div>
+        );
+      })}
     </>
   );
 }
