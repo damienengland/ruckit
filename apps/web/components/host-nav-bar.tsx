@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Users, 
@@ -16,7 +16,9 @@ import {
   Map,
   Layers,
   Shirt,
-  Grid
+  Grid,
+  Lock,
+  LockOpen
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -27,16 +29,24 @@ type ConnectionStatus = "connecting" | "connected" | "closed" | "error";
 type HostNavBarProps = {
   status?: ConnectionStatus;
   playerCount?: number;
+  onMovementLockChange?: (locked: boolean) => void;
 };
 
 type UtilityIcon = {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
+  id?: "lock";
+  onClick?: () => void;
 };
 
-export function HostNavBar({ status = "connecting", playerCount = 0 }: HostNavBarProps) {
+export function HostNavBar({
+  status = "connecting",
+  playerCount = 0,
+  onMovementLockChange,
+}: HostNavBarProps) {
   const [activeNav, setActiveNav] = useState<NavItem>("walkthrough");
   const [hoveredNav, setHoveredNav] = useState<NavItem | null>(null);
+  const [liveMovementLocked, setLiveMovementLocked] = useState(false);
 
   const navItems = [
     { 
@@ -70,12 +80,7 @@ export function HostNavBar({ status = "connecting", playerCount = 0 }: HostNavBa
       { icon: QrCode, title: "QR Code" },
       { icon: MoreVertical, title: "More options" },
     ],
-    live: [
-      { icon: RotateCcw, title: "Reset" },
-      { icon: Layers, title: "Field Overlay" },
-      { icon: QrCode, title: "QR Code" },
-      { icon: MoreVertical, title: "More options" },
-    ],
+    live: [],
     settings: [
       { icon: Users, title: "Players" },
       { icon: Shirt, title: "Jersey" },
@@ -85,8 +90,29 @@ export function HostNavBar({ status = "connecting", playerCount = 0 }: HostNavBa
     ],
   };
 
+  const movementLocked = activeNav === "walkthrough" || liveMovementLocked;
+
+  useEffect(() => {
+    onMovementLockChange?.(movementLocked);
+  }, [movementLocked, onMovementLockChange]);
+
   // Get utility icons for active menu
   const getUtilityIcons = (): UtilityIcon[] => {
+    if (activeNav === "live") {
+      return [
+        {
+          id: "lock",
+          icon: liveMovementLocked ? Lock : LockOpen,
+          title: liveMovementLocked ? "Unlock movement" : "Lock movement",
+          onClick: () => setLiveMovementLocked((prev) => !prev),
+        },
+        { icon: RotateCcw, title: "Reset" },
+        { icon: Layers, title: "Field Overlay" },
+        { icon: QrCode, title: "QR Code" },
+        { icon: MoreVertical, title: "More options" },
+      ];
+    }
+
     return utilityIcons[activeNav];
   };
 
@@ -185,6 +211,7 @@ export function HostNavBar({ status = "connecting", playerCount = 0 }: HostNavBa
             {getUtilityIcons().map((utility, index) => {
               const IconComponent = utility.icon;
               const activeItem = navItems.find(item => item.id === activeNav);
+              const isLockButton = utility.id === "lock";
               
               // Get utility button style matching active button color
               const getUtilityButtonStyle = () => {
@@ -217,9 +244,12 @@ export function HostNavBar({ status = "connecting", playerCount = 0 }: HostNavBa
                       "size-10 rounded-full border-2 shadow-md active:scale-[0.97]",
                       "focus:outline-none focus:ring-0 focus-visible:ring-0",
                       "active:outline-none active:ring-0",
-                      getUtilityButtonStyle()
+                      getUtilityButtonStyle(),
+                      isLockButton && liveMovementLocked && "ring-2 ring-white/70"
                     )}
                     title={utility.title}
+                    onClick={utility.onClick}
+                    aria-pressed={isLockButton ? liveMovementLocked : undefined}
                   >
                     <IconComponent className="size-4" />
                   </Button>

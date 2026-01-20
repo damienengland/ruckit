@@ -19,6 +19,9 @@ type JoystickProps = {
 
   /** show debug text under joystick */
   debug?: boolean;
+
+  /** disable input */
+  disabled?: boolean;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -46,6 +49,7 @@ export function Joystick({
   deadzone = 0.12,
   smoothing = 0.2,
   debug = false,
+  disabled = false,
 }: JoystickProps) {
   const radius = size / 2;
   const knobRadius = Math.round(size * 0.22);
@@ -61,6 +65,13 @@ export function Joystick({
   const smoothRef = useRef<Vec2>({ x: 0, y: 0 }); // [-1..1] after smoothing
 
   const maxKnobDistance = useMemo(() => radius - knobRadius - 6, [radius, knobRadius]);
+
+  useEffect(() => {
+    if (!disabled) return;
+    setKnobPx({ x: 0, y: 0 });
+    targetRef.current = { x: 0, y: 0 };
+    smoothRef.current = { x: 0, y: 0 };
+  }, [disabled]);
 
   // Emit smoothed values at animation-frame pace
   useEffect(() => {
@@ -124,9 +135,12 @@ export function Joystick({
     <div className="flex flex-col items-center gap-3">
       <div
         ref={containerRef}
-        className="touch-none select-none rounded-full border bg-white/5 backdrop-blur"
+        className={`touch-none select-none rounded-full border bg-white/5 backdrop-blur ${
+          disabled ? "pointer-events-none opacity-60" : ""
+        }`}
         style={{ width: size, height: size }}
         onPointerDown={(e) => {
+          if (disabled) return;
           // lock to one pointer (important for mobile)
           pointerIdRef.current = e.pointerId;
           (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
@@ -135,17 +149,20 @@ export function Joystick({
           setFromPointer(e.clientX, e.clientY);
         }}
         onPointerMove={(e) => {
+          if (disabled) return;
           if (!dragging) return;
           if (pointerIdRef.current !== e.pointerId) return;
           setFromPointer(e.clientX, e.clientY);
         }}
         onPointerUp={(e) => {
+          if (disabled) return;
           if (pointerIdRef.current !== e.pointerId) return;
           setDragging(false);
           pointerIdRef.current = null;
           reset();
         }}
         onPointerCancel={() => {
+          if (disabled) return;
           setDragging(false);
           pointerIdRef.current = null;
           reset();

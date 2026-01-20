@@ -33,15 +33,18 @@ type HostRealtimeProps = {
   code: string;
   onStatusChange?: (status: ConnectionStatus) => void;
   onPlayerCountChange?: (count: number) => void;
+  movementLocked?: boolean;
 };
 
 export function HostRealtime({
   code,
   onStatusChange,
   onPlayerCountChange,
+  movementLocked = false,
 }: HostRealtimeProps) {
   const wsRef = useRef<WebSocket | null>(null);
   const playersRef = useRef<Map<string, Player>>(new Map());
+  const movementLockedRef = useRef(movementLocked);
 
   const [renderPlayers, setRenderPlayers] = useState<Player[]>([]);
 
@@ -63,6 +66,7 @@ export function HostRealtime({
     ws.onopen = () => {
       onStatusChange?.("connected");
       ws.send(JSON.stringify({ type: "join", role: "host" }));
+      ws.send(JSON.stringify({ type: "control_update", movementLocked: movementLockedRef.current }));
     };
 
     ws.onmessage = (e) => {
@@ -103,6 +107,13 @@ export function HostRealtime({
         const existing = playersRef.current.get(msg.playerId);
         if (!existing) return;
 
+        if (movementLockedRef.current) {
+          existing.vx = 0;
+          existing.vy = 0;
+          existing.lastInputT = msg.t;
+          return;
+        }
+
         existing.vx = clamp(msg.vx, -1, 1);
         existing.vy = clamp(msg.vy, -1, 1);
         existing.lastInputT = msg.t;
@@ -115,6 +126,19 @@ export function HostRealtime({
 
     return () => ws.close();
   }, [code, onPlayerCountChange, onStatusChange]);
+
+  useEffect(() => {
+    movementLockedRef.current = movementLocked;
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "control_update", movementLocked }));
+    if (movementLocked) {
+      for (const player of playersRef.current.values()) {
+        player.vx = 0;
+        player.vy = 0;
+      }
+    }
+  }, [movementLocked]);
 
   // 60fps sim loop
   useEffect(() => {

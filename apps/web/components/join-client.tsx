@@ -29,6 +29,7 @@ export function JoinClient({ code }: { code: string }) {
 
   const [phase, setPhase] = useState<"form" | "joining" | "playing">("form");
   const [error, setError] = useState<string | null>(null);
+  const [movementLocked, setMovementLocked] = useState(false);
 
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
@@ -59,6 +60,8 @@ export function JoinClient({ code }: { code: string }) {
             setPlayerName(msg.name);
             setPlayerNumber(msg.number);
             setPhase("playing");
+          } else if (msg.type === "control_state") {
+            setMovementLocked(msg.movementLocked);
           } else if (msg.type === "join_rejected") {
             setPhase("form");
             setError(
@@ -78,7 +81,16 @@ export function JoinClient({ code }: { code: string }) {
 
   // after join accepted we show controller
   if (phase === "playing" && ws && playerId && playerName !== null && playerNumber !== null) {
-    return <PlayerController ws={ws} playerId={playerId} name={playerName} number={playerNumber} code={code} />;
+    return (
+      <PlayerController
+        ws={ws}
+        playerId={playerId}
+        name={playerName}
+        number={playerNumber}
+        code={code}
+        movementLocked={movementLocked}
+      />
+    );
   }
 
   return (

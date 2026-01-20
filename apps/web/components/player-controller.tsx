@@ -20,12 +20,14 @@ export function PlayerController({
   name,
   number,
   code,
+  movementLocked = false,
 }: {
   ws: WebSocket;
   playerId: string;
   name: string;
   number: number;
   code: string;
+  movementLocked?: boolean;
 }) {
   const [status, setStatus] = useState<"connected" | "closed" | "error">(
     ws.readyState === WebSocket.OPEN ? "connected" : "connected"
@@ -45,6 +47,20 @@ export function PlayerController({
     ws.onclose = () => setStatus("closed");
     ws.onerror = () => setStatus("error");
   }, [ws]);
+
+  useEffect(() => {
+    if (!movementLocked) return;
+    targetVxRef.current = 0;
+    targetVyRef.current = 0;
+    vxRef.current = 0;
+    vyRef.current = 0;
+    sendPlayerInput(ws, {
+      playerId,
+      vx: 0,
+      vy: 0,
+      t: Date.now(),
+    });
+  }, [movementLocked, playerId, ws]);
 
   // Send input at 20-30Hz with smooth stop deceleration
   useEffect(() => {
@@ -154,9 +170,11 @@ export function PlayerController({
         <Joystick
           onChange={(v) => {
             // Update target values - smooth stop will handle decay when released
+            if (movementLocked) return;
             targetVxRef.current = v.x;
             targetVyRef.current = v.y;
           }}
+          disabled={movementLocked}
           size={180}
           deadzone={0.12}
           smoothing={0.25}

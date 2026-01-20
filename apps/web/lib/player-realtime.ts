@@ -13,7 +13,17 @@ export type JoinRejected = {
   reason: "number_taken" | "invalid_number" | string;
 };
 
-export type ServerToPlayerMsg = JoinAccepted | JoinRejected | { type: "ready" } | { type: "error"; error: string };
+export type ControlState = {
+  type: "control_state";
+  movementLocked: boolean;
+};
+
+export type ServerToPlayerMsg =
+  | JoinAccepted
+  | JoinRejected
+  | ControlState
+  | { type: "ready" }
+  | { type: "error"; error: string };
 
 export type PlayerJoinPayload = {
   playerId: string;

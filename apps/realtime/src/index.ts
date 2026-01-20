@@ -23,7 +23,12 @@ type InputMsg = {
   t: number; // timestamp (ms)
 };
 
-type Msg = HostJoinMsg | PlayerJoinRequestMsg | InputMsg;
+type HostControlMsg = {
+  type: "control_update";
+  movementLocked: boolean;
+};
+
+type Msg = HostJoinMsg | PlayerJoinRequestMsg | InputMsg | HostControlMsg;
 
 /**
  * Messages from server → player
@@ -38,6 +43,11 @@ type JoinAccepted = {
 type JoinRejected = {
   type: "join_rejected";
   reason: "invalid_number" | "number_taken";
+};
+
+type ControlState = {
+  type: "control_state";
+  movementLocked: boolean;
 };
 
 /**
@@ -73,6 +83,7 @@ export class Room implements DurableObject {
   // in-memory state for this room
   private players = new Map<string, PlayerRecord>(); // playerId -> record
   private numberToPlayerId = new Map<number, string>(); // number -> playerId
+  private movementLocked = false;
 
   constructor(private state: DurableObjectState) {}
 
@@ -156,6 +167,13 @@ export class Room implements DurableObject {
         } satisfies JoinAccepted)
       );
 
+      ws.send(
+        JSON.stringify({
+          type: "control_state",
+          movementLocked: this.movementLocked,
+        } satisfies ControlState)
+      );
+
       // notify host with full metadata
       this.sendToHost({
         type: "player_joined",
@@ -164,6 +182,22 @@ export class Room implements DurableObject {
         number,
       });
 
+      return;
+    }
+
+    if (data.type === "control_update") {
+      const meta = ws.deserializeAttachment() as SockMeta;
+
+      if (!meta || meta.role !== "host") {
+        ws.send(JSON.stringify({ type: "error", error: "not_a_host" }));
+        return;
+      }
+
+      this.movementLocked = Boolean(data.movementLocked);
+      this.sendToPlayers({
+        type: "control_state",
+        movementLocked: this.movementLocked,
+      } satisfies ControlState);
       return;
     }
 
@@ -223,6 +257,19 @@ export class Room implements DurableObject {
     for (const sock of this.state.getWebSockets()) {
       const meta = sock.deserializeAttachment() as SockMeta;
       if (meta?.role === "host") {
+        try {
+          sock.send(msg);
+        } catch {}
+      }
+    }
+  }
+
+  private sendToPlayers(payload: unknown) {
+    const msg = JSON.stringify(payload);
+
+    for (const sock of this.state.getWebSockets()) {
+      const meta = sock.deserializeAttachment() as SockMeta;
+      if (meta?.role === "player") {
         try {
           sock.send(msg);
         } catch {}
