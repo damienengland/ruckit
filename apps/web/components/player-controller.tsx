@@ -10,6 +10,10 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
 export function PlayerController({
   ws,
   playerId,
@@ -29,25 +33,72 @@ export function PlayerController({
 
   const vxRef = useRef(0);
   const vyRef = useRef(0);
+  const targetVxRef = useRef(0);
+  const targetVyRef = useRef(0);
+  const lastSendTimeRef = useRef(0);
+
+  // Smooth stop factor - how quickly velocity decays when joystick is released
+  // Higher value = faster decay (0.1 = slow smooth stop, 0.25 = faster stop)
+  const SMOOTH_STOP_FACTOR = 0.15;
 
   useEffect(() => {
     ws.onclose = () => setStatus("closed");
     ws.onerror = () => setStatus("error");
   }, [ws]);
 
-  // send input at 20Hz
+  // Send input at 20-30Hz with smooth stop deceleration
   useEffect(() => {
-    const interval = setInterval(() => {
-      sendPlayerInput(ws, {
-        playerId,
-        vx: clamp(vxRef.current, -1, 1),
-        vy: clamp(vyRef.current, -1, 1),
-        t: Date.now(),
-      });
-    }, 50);
+    // Clamp send rate to 20-30Hz (33.33ms to 50ms intervals)
+    const MIN_INTERVAL_MS = 33.33; // 30Hz max (1000/30)
+    const MAX_INTERVAL_MS = 50; // 20Hz min (1000/20)
+    const TARGET_INTERVAL_MS = 40; // 25Hz target (middle of range)
 
-    return () => clearInterval(interval);
-  }, [ws, playerId]);
+    let animationFrameId: number;
+    let lastUpdateTime = performance.now();
+
+    const tick = () => {
+      const now = performance.now();
+      const deltaTime = Math.min(now - lastUpdateTime, 100); // Cap deltaTime to prevent large jumps
+
+      // Smooth stop: gradually decay velocity towards target using exponential decay
+      // This ensures smooth deceleration when joystick is released (target becomes 0)
+      const stopFactor = 1 - SMOOTH_STOP_FACTOR;
+      const lerpFactor = 1 - Math.pow(stopFactor, deltaTime / 16.67); // Normalize to 60fps base
+      
+      vxRef.current = lerp(vxRef.current, targetVxRef.current, lerpFactor);
+      vyRef.current = lerp(vyRef.current, targetVyRef.current, lerpFactor);
+
+      // Clamp values to [-1, 1] range
+      vxRef.current = clamp(vxRef.current, -1, 1);
+      vyRef.current = clamp(vyRef.current, -1, 1);
+
+      // Send at clamped rate (20-30Hz)
+      const timeSinceLastSend = now - lastSendTimeRef.current;
+      
+      // Ensure interval stays within 20-30Hz range
+      const clampedInterval = Math.max(MIN_INTERVAL_MS, Math.min(MAX_INTERVAL_MS, TARGET_INTERVAL_MS));
+      
+      if (timeSinceLastSend >= clampedInterval) {
+        // Send if there's any movement (including smooth stop decay)
+        const hasMovement = Math.abs(vxRef.current) > 0.001 || Math.abs(vyRef.current) > 0.001;
+        if (hasMovement) {
+          sendPlayerInput(ws, {
+            playerId,
+            vx: vxRef.current,
+            vy: vyRef.current,
+            t: Date.now(),
+          });
+          lastSendTimeRef.current = now;
+        }
+      }
+
+      lastUpdateTime = now;
+      animationFrameId = requestAnimationFrame(tick);
+    };
+
+    animationFrameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [ws, playerId, SMOOTH_STOP_FACTOR]);
 
   const getStatusIcon = () => {
     switch (status) {
@@ -102,8 +153,9 @@ export function PlayerController({
       <div className="flex flex-1 items-center justify-center">
         <Joystick
           onChange={(v) => {
-            vxRef.current = v.x;
-            vyRef.current = v.y;
+            // Update target values - smooth stop will handle decay when released
+            targetVxRef.current = v.x;
+            targetVyRef.current = v.y;
           }}
           size={180}
           deadzone={0.12}
