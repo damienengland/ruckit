@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { getRoomWsUrl } from "@/lib/realtime";
 import { PlayerAvatar } from "@/components/player-avatar";
+import { defaultLineupPositions, jerseyNumbers } from "@/lib/formation-defaults";
+import type { FormationPositionInput } from "@/lib/formations";
 
 type Player = {
   id: string;
@@ -35,6 +37,8 @@ type HostRealtimeProps = {
   onPlayerCountChange?: (count: number) => void;
   movementLocked?: boolean;
   jerseyVisibility?: Record<number, boolean>;
+  formationPositions?: Record<number, { x: number; y: number }>;
+  onPositionsChange?: (positions: FormationPositionInput[]) => void;
 };
 
 export function HostRealtime({
@@ -43,6 +47,8 @@ export function HostRealtime({
   onPlayerCountChange,
   movementLocked = false,
   jerseyVisibility,
+  formationPositions,
+  onPositionsChange,
 }: HostRealtimeProps) {
   const wsRef = useRef<WebSocket | null>(null);
   const playersRef = useRef<Map<string, Player>>(new Map());
@@ -50,25 +56,7 @@ export function HostRealtime({
 
   const [renderPlayers, setRenderPlayers] = useState<Player[]>([]);
 
-  const lineupPositions: Record<number, { x: number; y: number }> = {
-    1: { x: 0.35, y: 0.85 },
-    2: { x: 0.5, y: 0.85 },
-    3: { x: 0.65, y: 0.85 },
-    4: { x: 0.42, y: 0.7 },
-    5: { x: 0.58, y: 0.7 },
-    6: { x: 0.3, y: 0.58 },
-    7: { x: 0.7, y: 0.58 },
-    8: { x: 0.5, y: 0.58 },
-    9: { x: 0.46, y: 0.45 },
-    10: { x: 0.54, y: 0.45 },
-    11: { x: 0.2, y: 0.25 },
-    12: { x: 0.4, y: 0.35 },
-    13: { x: 0.6, y: 0.35 },
-    14: { x: 0.8, y: 0.25 },
-    15: { x: 0.5, y: 0.15 },
-  };
-
-  const jerseyNumbers = Array.from({ length: 15 }, (_, index) => index + 1);
+  const activeFormationPositions = formationPositions ?? defaultLineupPositions;
 
   const syncPlayerCount = () => onPlayerCountChange?.(playersRef.current.size);
 
@@ -162,6 +150,18 @@ export function HostRealtime({
     }
   }, [movementLocked]);
 
+  useEffect(() => {
+    if (!formationPositions) return;
+    for (const player of playersRef.current.values()) {
+      const position = formationPositions[player.number];
+      if (!position) continue;
+      player.x = position.x;
+      player.y = position.y;
+      player.vx = 0;
+      player.vy = 0;
+    }
+  }, [formationPositions]);
+
   // 60fps sim loop
   useEffect(() => {
     let raf = 0;
@@ -186,6 +186,25 @@ export function HostRealtime({
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  useEffect(() => {
+    if (!onPositionsChange) return;
+    const positions = jerseyNumbers
+      .map((number) => {
+        const player = renderPlayers.find((entry) => entry.number === number);
+        const fallback = activeFormationPositions[number];
+        if (!player && !fallback) return null;
+        const position = player ?? fallback;
+        return {
+          jerseyNumber: number,
+          x: position.x,
+          y: position.y,
+        };
+      })
+      .filter((position): position is FormationPositionInput => Boolean(position));
+
+    onPositionsChange(positions);
+  }, [activeFormationPositions, onPositionsChange, renderPlayers]);
+
   return (
     <>
       {renderPlayers.map((p) => {
@@ -206,7 +225,7 @@ export function HostRealtime({
       {jerseyNumbers.map((number) => {
         const isVisible = jerseyVisibility?.[number] ?? true;
         const hasPlayer = renderPlayers.some((player) => player.number === number);
-        const position = lineupPositions[number];
+        const position = activeFormationPositions[number];
 
         if (!isVisible || hasPlayer || !position) return null;
 

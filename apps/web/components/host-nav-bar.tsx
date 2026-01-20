@@ -2,6 +2,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { FormationsDialog } from "@/components/formations-dialog";
+import type { FormationPositionInput } from "@/lib/formations";
 import { 
   Users, 
   Play, 
@@ -32,12 +34,14 @@ type HostNavBarProps = {
   onMovementLockChange?: (locked: boolean) => void;
   jerseyVisibility?: Record<number, boolean>;
   onJerseyToggle?: (number: number) => void;
+  currentFormationPositions?: FormationPositionInput[];
+  onLoadFormation?: (positions: FormationPositionInput[]) => void;
 };
 
 type UtilityIcon = {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
-  id?: "lock" | "jersey";
+  id?: "lock" | "jersey" | "formations";
   onClick?: () => void;
 };
 
@@ -47,6 +51,8 @@ export function HostNavBar({
   onMovementLockChange,
   jerseyVisibility,
   onJerseyToggle,
+  currentFormationPositions,
+  onLoadFormation,
 }: HostNavBarProps) {
   const [activeNav, setActiveNav] = useState<NavItem>("walkthrough");
   const [hoveredNav, setHoveredNav] = useState<NavItem | null>(null);
@@ -82,7 +88,7 @@ export function HostNavBar({
   const utilityIcons: Record<NavItem, UtilityIcon[]> = {
     walkthrough: [
       { icon: Pencil, title: "Edit Walkthrough" },
-      { icon: Map, title: "Map View" },
+      { icon: Map, title: "Formations", id: "formations" },
       { icon: QrCode, title: "QR Code" },
       { icon: MoreVertical, title: "More options" },
     ],
@@ -250,6 +256,7 @@ export function HostNavBar({
               const activeItem = navItems.find(item => item.id === activeNav);
               const isLockButton = utility.id === "lock";
               const isJerseyButton = utility.id === "jersey";
+              const isFormationsButton = utility.id === "formations";
               
               // Get utility button style matching active button color
               const getUtilityButtonStyle = () => {
@@ -265,6 +272,26 @@ export function HostNavBar({
                 return "";
               };
               
+              if (isFormationsButton) {
+                return (
+                  <motion.div
+                    key={`${activeNav}-${index}`}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <FormationsDialog
+                      buttonClassName={getUtilityButtonStyle()}
+                      currentPositions={currentFormationPositions}
+                      onLoadFormation={(positions) => onLoadFormation?.(positions)}
+                    />
+                  </motion.div>
+                );
+              }
+
               if (isJerseyButton) {
                 return (
                   <motion.div
