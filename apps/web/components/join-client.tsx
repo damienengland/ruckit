@@ -5,10 +5,11 @@ import { useMemo, useState } from "react";
 import { connectPlayerWs, type ServerToPlayerMsg } from "@/lib/player-realtime";
 import { PlayerController } from "@/components/player-controller";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Logo } from "@/components/logo";
 
 function getOrCreatePlayerId() {
   const key = "ruckit_player_id";
@@ -31,6 +32,8 @@ export function JoinClient({ code }: { code: string }) {
 
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
+  const [playerName, setPlayerName] = useState<string | null>(null);
+  const [playerNumber, setPlayerNumber] = useState<number | null>(null);
 
   const onJoin = () => {
     const trimmed = name.trim();
@@ -53,13 +56,15 @@ export function JoinClient({ code }: { code: string }) {
         onMessage: (msg: ServerToPlayerMsg) => {
           if (msg.type === "join_accepted") {
             setWs(socket);
+            setPlayerName(msg.name);
+            setPlayerNumber(msg.number);
             setPhase("playing");
           } else if (msg.type === "join_rejected") {
             setPhase("form");
             setError(
               msg.reason === "number_taken"
                 ? "That number is already taken. Choose another."
-                : "Couldn’t join. Please try again."
+                : "Couldn't join. Please try again."
             );
             socket.close();
           }
@@ -72,79 +77,81 @@ export function JoinClient({ code }: { code: string }) {
   };
 
   // after join accepted we show controller
-  if (phase === "playing" && ws && playerId) {
-    return <PlayerController ws={ws} playerId={playerId} />;
+  if (phase === "playing" && ws && playerId && playerName !== null && playerNumber !== null) {
+    return <PlayerController ws={ws} playerId={playerId} name={playerName} number={playerNumber} code={code} />;
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100 p-4 font-sans dark:from-black dark:to-zinc-950">
-      <div className="w-full max-w-lg space-y-6">
-        <div className="text-center">
-          <p className="mb-2 text-sm font-medium text-muted-foreground">Game Code</p>
-          <div className="inline-flex items-center justify-center rounded-lg border-2 border-primary/20 bg-primary/5 px-6 py-3">
-            <span className="text-3xl font-bold tracking-wider text-primary">{code.toUpperCase()}</span>
-          </div>
-        </div>
-
-        <Card className="border-2 shadow-lg">
-          <CardHeader className="space-y-2 pb-4 text-center">
-            <CardTitle className="text-2xl">Join the Game</CardTitle>
-            <CardDescription className="text-base">
-              Enter your name and choose a jersey number.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-8">
-            {error ? (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm">
-                {error}
-              </div>
-            ) : null}
-
-            <div className="space-y-3">
-              <Label htmlFor="name" className="text-base">Player Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="What should we call you?"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-12 text-base"
-                autoFocus
-                disabled={phase === "joining"}
-              />
+    <div className="flex min-h-screen bg-red-700 font-sans">
+      <div className="flex flex-col w-full min-h-screen items-center justify-center">
+        <section className="flex flex-col gap-4 w-full max-w-lg px-4">
+          <div className="text-center mb-4">
+            <p className="mb-2 text-sm font-medium text-white/80">Game Code</p>
+            <div className="inline-flex items-center justify-center rounded-lg border-2 border-red-400/30 bg-red-700/20 backdrop-blur-xs px-6 py-3">
+              <span className="text-3xl font-bold tracking-wider text-white">{code.toUpperCase()}</span>
             </div>
+          </div>
 
-            <div className="space-y-4">
-              <Label className="text-base">Choose Your Number</Label>
-              <div className="rounded-lg border-2 border-dashed border-muted bg-muted/30 p-4">
-                <div className="grid grid-cols-5 gap-3">
-                  {numbers.map((n) => (
-                    <Button
-                      key={n}
-                      type="button"
-                      variant={selectedNumber === n ? "default" : "outline"}
-                      onClick={() => setSelectedNumber(n)}
-                      className="h-14 w-14 rounded-full p-0 text-xl font-bold transition-all hover:scale-105 active:scale-95"
-                      disabled={phase === "joining"}
-                    >
-                      {n}
-                    </Button>
-                  ))}
+          <Card className="bg-red-700/20 backdrop-blur-xs border-2 border-red-400/30 w-full shadow-2xl shadow-black/50">
+            <CardHeader className="text-center pt-6">
+              <CardTitle className="text-white font-bold text-2xl"><Logo /></CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {error ? (
+                <div className="rounded-lg border border-red-500/50 bg-red-500/20 backdrop-blur p-3 text-sm text-white">
+                  {error}
+                </div>
+              ) : null}
+
+              <div className="space-y-3">
+                <Label htmlFor="name" className="text-white text-base">Player Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="What should we call you?"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="h-12 bg-white/10 border-red-400/30 text-white placeholder:text-white/60 text-base font-semibold focus-visible:border-white/60 focus-visible:ring-white/30"
+                  autoFocus
+                  disabled={phase === "joining"}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <Label className="text-white text-base">Choose Your Number</Label>
+                <div className="rounded-lg border-2 border-dashed border-red-400/30 bg-white/5 backdrop-blur p-4">
+                  <div className="grid grid-cols-5 gap-3">
+                    {numbers.map((n) => (
+                      <Button
+                        key={n}
+                        type="button"
+                        variant={selectedNumber === n ? "default" : "outline"}
+                        onClick={() => setSelectedNumber(n)}
+                        className={`h-14 w-14 rounded-full p-0 text-xl font-bold transition-all hover:scale-105 active:scale-95 ${
+                          selectedNumber === n 
+                            ? "bg-red-600 border-red-400 text-white" 
+                            : "bg-white/10 border-red-400/30 text-white hover:bg-white/20"
+                        }`}
+                        disabled={phase === "joining"}
+                      >
+                        {n}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <Button
-              className="h-12 w-full text-base font-semibold"
-              size="lg"
-              disabled={phase === "joining" || !name.trim() || selectedNumber === null}
-              onClick={onJoin}
-            >
-              {phase === "joining" ? "Joining…" : "Join Game"}
-            </Button>
-          </CardContent>
-        </Card>
+              <Button
+                className="h-12 w-full bg-black/50 text-white font-semibold text-base hover:bg-black/70 disabled:opacity-50"
+                size="lg"
+                disabled={phase === "joining" || !name.trim() || selectedNumber === null}
+                onClick={onJoin}
+              >
+                {phase === "joining" ? "Joining…" : "Join Session"}
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
       </div>
     </div>
   );
