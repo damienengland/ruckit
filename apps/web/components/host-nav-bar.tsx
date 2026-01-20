@@ -35,12 +35,31 @@ type UtilityIcon = {
 };
 
 export function HostNavBar({ status = "connecting", playerCount = 0 }: HostNavBarProps) {
-  const [activeNav, setActiveNav] = useState<NavItem | null>(null);
+  const [activeNav, setActiveNav] = useState<NavItem>("walkthrough");
+  const [hoveredNav, setHoveredNav] = useState<NavItem | null>(null);
 
   const navItems = [
-    { id: "walkthrough" as NavItem, label: "Walkthrough", icon: Footprints },
-    { id: "live" as NavItem, label: "Live", icon: Play },
-    { id: "settings" as NavItem, label: "Settings", icon: Settings },
+    { 
+      id: "walkthrough" as NavItem, 
+      label: "Walkthrough", 
+      icon: Footprints,
+      color: "cyan",
+      style: "bg-cyan-500 text-cyan-50 border-cyan-400 shadow-cyan-500/50 hover:bg-cyan-600 hover:text-cyan-50 hover:border-cyan-400 hover:shadow-cyan-500/50",
+    },
+    { 
+      id: "live" as NavItem, 
+      label: "Live", 
+      icon: Play,
+      color: "lime",
+      style: "bg-lime-500 text-lime-50 border-lime-400 shadow-lime-500/50 hover:bg-lime-600 hover:text-lime-50 hover:border-lime-400 hover:shadow-lime-500/50",
+    },
+    { 
+      id: "settings" as NavItem, 
+      label: "Settings", 
+      icon: Settings,
+      color: "amber",
+      style: "bg-amber-500 text-amber-50 border-amber-400 shadow-amber-500/50 hover:bg-amber-600 hover:text-amber-50 hover:border-amber-400 hover:shadow-amber-500/50",
+    },
   ];
 
   // Utility icons for each menu
@@ -66,17 +85,11 @@ export function HostNavBar({ status = "connecting", playerCount = 0 }: HostNavBa
     ],
   };
 
-  // Get utility icons for active menu, or show default (QR + More)
+  // Get utility icons for active menu
   const getUtilityIcons = (): UtilityIcon[] => {
-    if (activeNav && utilityIcons[activeNav]) {
-      return utilityIcons[activeNav];
-    }
-    // Default icons when no menu is selected
-    return [
-      { icon: QrCode, title: "QR Code" },
-      { icon: MoreVertical, title: "More options" },
-    ];
+    return utilityIcons[activeNav];
   };
+
 
   return (
     <nav className="relative z-50 w-full">
@@ -87,44 +100,41 @@ export function HostNavBar({ status = "connecting", playerCount = 0 }: HostNavBa
       <div className="relative border-b border-white/10 bg-black/10 backdrop-blur-2xl">
         <div className="mx-auto flex h-16 w-full items-center justify-between px-10">
           {/* Left side - Primary navigation buttons */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeNav === item.id;
+              const isHovered = hoveredNav === item.id;
+              const shouldDim = !isActive && !isHovered;
               
               return (
                 <motion.div
                   key={item.id}
+                  onMouseEnter={() => setHoveredNav(item.id)}
+                  onMouseLeave={() => setHoveredNav(null)}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  animate={{
+                    opacity: shouldDim ? 0.5 : 1,
+                    scale: isActive ? 1.05 : 1,
+                  }}
+                  transition={{ duration: 0.2 }}
                 >
                   <Button
                     variant="ghost"
                     size="default"
-                    onClick={() => setActiveNav(isActive ? null : item.id)}
+                    onClick={() => setActiveNav(item.id)}
                     className={cn(
-                      "relative gap-2 font-semibold transition-all duration-200",
-                      "h-10 rounded-xl border border-white/10 bg-white/5 px-4",
-                      "text-white/90 hover:bg-white/15 hover:text-white",
-                      "hover:border-white/20 active:scale-[0.97]",
-                      isActive && "bg-white/20 border-white/20 text-white shadow-lg"
+                      "relative flex items-center justify-center gap-2 font-semibold transition-all duration-200",
+                      "h-10 rounded-full border-2 shadow-md px-4",
+                      "focus:outline-none focus:ring-0 focus-visible:ring-0",
+                      "active:outline-none active:ring-0",
+                      item.style,
+                      shouldDim && "grayscale-[0.3]"
                     )}
-                    style={{
-                      boxShadow: isActive
-                        ? "0 8px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1) inset"
-                        : "0 4px 12px rgba(0,0,0,0.2)",
-                    }}
                   >
                     <Icon className="size-4" />
                     <span>{item.label}</span>
-                    {isActive && (
-                      <motion.div
-                        layoutId="activeNavIndicator"
-                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent"
-                        initial={false}
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      />
-                    )}
                   </Button>
                 </motion.div>
               );
@@ -137,37 +147,34 @@ export function HostNavBar({ status = "connecting", playerCount = 0 }: HostNavBa
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               className={cn(
-                "flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5",
-                status === "connected" && "border-green-500/30 bg-green-500/10",
-                status === "connecting" && "border-yellow-500/30 bg-yellow-500/10",
-                status === "error" && "border-red-500/30 bg-red-500/10",
-                status === "closed" && "border-gray-500/30 bg-gray-500/10"
+                "flex items-center gap-2 rounded-xl border border-2 bg-white/5 px-3 py-1.5 shadow-md text-white",
+                status === "connected" && "border-violet-500/30 bg-violet-500 shadow-violet-500/50 border-violet-400",
+                status === "connecting" && "border-yellow-500/30 bg-yellow-500 border-yellow-400 shadow-yellow-500/50",
+                status === "error" && "border-red-500/30 bg-red-500 border-red-400 shadow-red-500/50",
+                status === "closed" && "border-gray-500/30 bg-gray-500 border-gray-400 shadow-gray-500/50"
               )}
-              style={{
-                boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-              }}
             >
               {status === "connecting" ? (
                 <>
-                  <Loader2 className="size-3.5 animate-spin text-yellow-400" />
-                  <span className="text-xs font-medium text-yellow-400/90">Connecting</span>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span className="text-xs font-medium">Connecting</span>
                 </>
               ) : status === "connected" ? (
                 <>
-                  <Wifi className="size-3.5 text-green-400" />
-                  <span className="text-xs font-medium text-green-400/90">Connected</span>
-                  <span className="text-xs font-semibold text-green-400/70">•</span>
-                  <span className="text-xs font-medium text-green-400/90">{playerCount}</span>
+                  <Wifi className="size-3.5 text-white" />
+                  <span className="text-xs font-medium text-white">Connected</span>
+                  <span className="text-xs font-semibold text-white">•</span>
+                  <span className="text-xs font-medium text-white">{playerCount}</span>
                 </>
               ) : status === "error" ? (
                 <>
-                  <Wifi className="size-3.5 text-red-400" />
-                  <span className="text-xs font-medium text-red-400/90">Error</span>
+                  <Wifi className="size-3.5" />
+                  <span className="text-xs font-medium">Error</span>
                 </>
               ) : (
                 <>
-                  <Wifi className="size-3.5 text-gray-400" />
-                  <span className="text-xs font-medium text-gray-400/90">Disconnected</span>
+                  <Wifi className="size-3.5" />
+                  <span className="text-xs font-medium">Disconnected</span>
                 </>
               )}
             </motion.div>
@@ -177,6 +184,22 @@ export function HostNavBar({ status = "connecting", playerCount = 0 }: HostNavBa
           <div className="flex items-center gap-1.5">
             {getUtilityIcons().map((utility, index) => {
               const IconComponent = utility.icon;
+              const activeItem = navItems.find(item => item.id === activeNav);
+              
+              // Get utility button style matching active button color
+              const getUtilityButtonStyle = () => {
+                if (!activeItem) return "";
+                
+                if (activeItem.color === "cyan") {
+                  return "bg-cyan-500 text-cyan-50 border-cyan-400 shadow-cyan-500/50 hover:bg-cyan-600 hover:text-cyan-50 hover:border-cyan-400";
+                } else if (activeItem.color === "lime") {
+                  return "bg-lime-500 text-lime-50 border-lime-400 shadow-lime-500/50 hover:bg-lime-600 hover:text-lime-50 hover:border-lime-400";
+                } else if (activeItem.color === "amber") {
+                  return "bg-amber-500 text-amber-50 border-amber-400 shadow-amber-500/50 hover:bg-amber-600 hover:text-amber-50 hover:border-amber-400";
+                }
+                return "";
+              };
+              
               return (
                 <motion.div
                   key={`${activeNav}-${index}`}
@@ -190,11 +213,13 @@ export function HostNavBar({ status = "connecting", playerCount = 0 }: HostNavBa
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-10 rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/15 hover:border-white/20 hover:text-white active:scale-[0.97]"
+                    className={cn(
+                      "size-10 rounded-full border-2 shadow-md active:scale-[0.97]",
+                      "focus:outline-none focus:ring-0 focus-visible:ring-0",
+                      "active:outline-none active:ring-0",
+                      getUtilityButtonStyle()
+                    )}
                     title={utility.title}
-                    style={{
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-                    }}
                   >
                     <IconComponent className="size-4" />
                   </Button>

@@ -12,7 +12,7 @@ export function HostScreen({ code }: { code: string }) {
   const [playerCount, setPlayerCount] = useState(0);
 
   return (
-    <div className="flex h-screen w-full flex-col bg-green-800">
+    <div className="flex h-screen w-full flex-col bg-red-700">
       <HostNavBar status={status} playerCount={playerCount} />
       <section className="flex flex-1 w-full flex-col items-center overflow-hidden">
 

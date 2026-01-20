@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { FieldPost } from "@/components/field-post";
+import { Logo } from "./logo";
 
 export function FieldHalf({ children }: { children: ReactNode }) {
   return (
-    <div className="relative h-full w-full bg-green-800 overflow-hidden">
+    <div className="relative h-full w-full bg-red-700 overflow-hidden">
       {/* Padding wrapper – DOES NOT increase screen height */}
       <div className="relative h-full w-full p-10 box-border">
         {/* Field container shrinks to fit padding */}
@@ -37,7 +38,7 @@ export function FieldHalf({ children }: { children: ReactNode }) {
               }}
               className="text-white/50 text-3xl tracking-widest"
             >
-              RUCK IT
+              <Logo size="lg" className="text-white/50"/>
             </div>
 
             {/* Try line */}
@@ -77,7 +78,7 @@ export function FieldHalf({ children }: { children: ReactNode }) {
                 textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
               }}
             >
-              <span className="bg-green-800 py-2">
+              <span className="bg-red-700 py-2">
                 <span className="bg-white/20 p-2">22</span>
               </span>
             </div>
@@ -108,7 +109,7 @@ export function FieldHalf({ children }: { children: ReactNode }) {
                 textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
               }}
             >
-              <span className="bg-green-800 py-2">
+              <span className="bg-red-700 py-2">
                 <span className="bg-white/20 p-2">40</span>
               </span>
             </div>
@@ -139,7 +140,7 @@ export function FieldHalf({ children }: { children: ReactNode }) {
                 textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
               }}
             >
-              <span className="bg-green-800 py-2">
+              <span className="bg-red-700 py-2">
                 <span className="bg-white/20 p-2">05</span>
               </span>
             </div>
